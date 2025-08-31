@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import os
 
@@ -57,7 +58,6 @@ def generate_certificate_file(filename):
         f.write(key+cert)
 
 
-if __name__ == "__main__":
-    print("Go")
-    generate_certificate_file("cert2.pem")
-    print("Done")
+async def generate_certificate_async(filename):
+    await asyncio.get_running_loop().run_in_executor(
+        None, generate_certificate_file, filename)
