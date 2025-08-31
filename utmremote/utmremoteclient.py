@@ -239,6 +239,37 @@ class UTMRemoteClient:
             return await SM.ChangePointerTypeVirtualMachine.send(
                 parameters, self.peer)
 
+    @classmethod
+    def check_cert_pubkey(cls, cert, expected_pubkey):
+        from cryptography import x509
+        from cryptography.hazmat.primitives import serialization
+        cert = x509.load_der_x509_certificate(cert)
+        expected_pubkey = serialization.load_der_public_key(expected_pubkey)
+        if cert.public_key() != expected_pubkey:
+            raise ValueError("Certificate has wrong public key")
+
+    @classmethod
+    async def get_spice_cert(cls, server, expected_pubkey=None,
+                             ssl_context=None):
+        loop = asyncio.get_running_loop()
+        if isinstance(server, tuple):
+            connargs = dict(zip(["host", "port"], server))
+        else:
+            connargs = {"sock": server}
+        if ssl_context is None:
+            ssl_context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
+            ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+        reader, _ = await asyncio.open_connection(
+            ssl=ssl_context, **connargs)
+        sslobj = reader._transport.get_extra_info('ssl_object')
+        peercert = sslobj.getpeercert(True)
+        if expected_pubkey:
+            cls.check_cert_pubkey(peercert, expected_pubkey)
+        reader._transport.close()
+        return ssl.DER_cert_to_PEM_cert(peercert)
+
     def __init__(self, certificate, ssl_context=None, debug=False):
         self.debug = debug
         self.transport = None

@@ -34,6 +34,9 @@ async def async_main(argv):
                         help="resume a virtual machine")
     parser.add_argument('--generate', '-g', help="generate a new cert",
                         action='store_true')
+    parser.add_argument('--spice-cert', '-C',
+                        help="save SPICE server certificate to "
+                        "this file (PEM format)")
     parser.add_argument('--debug', '-d', help="enable debug",
                         action='store_true')
 
@@ -78,6 +81,13 @@ async def async_main(argv):
                         host = args.server
                         port = info.spicePortInternal
                     if port:
+                        if args.spice_cert:
+                            spice_cert = await client.get_spice_cert(
+                                (host, port), info.spicePublicKey)
+                            with open(args.spice_cert, "w") as f:
+                                f.write(spice_cert)
+                                print("Wrote SPICE server certificate to "
+                                      f"{args.spice_cert}")
                         url = urllib.parse.urlunparse((
                             'spice', '['+host+']' if ':' in host else host,
                             '', '', urllib.parse.urlencode(
