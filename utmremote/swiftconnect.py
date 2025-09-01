@@ -118,6 +118,9 @@ class Peer:
             self.fail(error, token)
         return await future
 
+    async def trusted(self):
+        await self.protocol.trusted()
+
 
 class SwiftConnectProtocol(asyncio.Protocol):
     def __init__(self, peer):
@@ -130,6 +133,7 @@ class SwiftConnectProtocol(asyncio.Protocol):
         self.transport = transport
         self.header = None
         self.data = None
+        self.transport.pause_reading()
         self.valve.set()
 
     def data_received(self, data):
@@ -173,3 +177,6 @@ class SwiftConnectProtocol(asyncio.Protocol):
                 data += bytes(x)
         await self.valve.wait()
         self.transport.write(data)
+
+    async def trusted(self):
+        self.transport.resume_reading()

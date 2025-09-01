@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import inspect
 import ssl
 
 from .swiftconnect import SwiftConnectProtocol, LocalInterface, Peer
@@ -300,21 +301,29 @@ class UTMRemoteClient:
             fp = self.server_fingerprint.hex(':', 1).upper()
             print(f"server fingerprint: {fp}")
         if hasattr(self, 'client_fingerprint'):
-            self.connection_fingerprint = bytes(
-                s ^ c for s, c in zip(self.server_fingerprint,
-                                      self.client_fingerprint))
             if self.debug:
                 fp = self.client_fingerprint.hex(':', 1).upper()
                 print(f"client fingerprint: {fp}")
+            self.connection_fingerprint = bytes(
+                s ^ c for s, c in zip(self.server_fingerprint,
+                                      self.client_fingerprint))
             if self.debug or expected_fingerprint is None:
                 fp = self.connection_fingerprint.hex(':', 1).upper()
                 print(f"connection fingerprint: {fp}")
-            if expected_fingerprint is not None:
-                if isinstance(expected_fingerprint, str):
-                    expected_fingerprint = bytes.fromhex(
-                        expected_fingerprint.replace(':', ''))
-                if expected_fingerprint != self.connection_fingerprint:
-                    raise ConnectionError("Fingerprint mismatch")
+        else:
+            self.connection_fingerprint = None
+        if callable(expected_fingerprint):
+            expected_fingerprint = expected_fingerprint(
+                self.connection_fingerprint)
+        if inspect.isawaitable(expected_fingerprint):
+            expected_fingerprint = await expected_fingerprint
+        if expected_fingerprint is not None:
+            if isinstance(expected_fingerprint, str):
+                expected_fingerprint = bytes.fromhex(
+                    expected_fingerprint.replace(':', ''))
+            if expected_fingerprint != self.connection_fingerprint:
+                raise ConnectionError("Fingerprint mismatch")
+        await self.peer.trusted()
         self.remote = self.Remote(self.peer)
         isAuthenticated, device = await self.remote.handshake(password)
         if not isAuthenticated:
