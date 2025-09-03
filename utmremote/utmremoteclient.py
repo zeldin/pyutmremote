@@ -325,7 +325,14 @@ class UTMRemoteClient:
                 raise ConnectionError("Fingerprint mismatch")
         await self.peer.trusted()
         self.remote = self.Remote(self.peer)
-        isAuthenticated, device = await self.remote.handshake(password)
+        isAuthenticated, device = await self.remote.handshake(
+            None if callable(password) else password)
+        if not isAuthenticated and callable(password):
+            password = password()
+            if inspect.isawaitable(password):
+                password = await password
+            if password:
+                isAuthenticated, device = await self.remote.handshake(password)
         if not isAuthenticated:
             raise ValueError("Password invalid" if password else
                              "Password required")
