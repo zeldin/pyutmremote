@@ -345,6 +345,9 @@ class UTMRemoteClient:
             self._cleanup()
             raise
 
+    def close(self):
+        self._cleanup()
+
     def _cleanup(self):
         if self.transport is not None:
             self.transport.close()
