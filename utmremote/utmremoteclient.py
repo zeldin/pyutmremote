@@ -285,7 +285,7 @@ class UTMRemoteClient:
                 self.client_fingerprint = _fingerprint_pem(certfile.read())
         self.ssl_context = ssl_context
 
-    async def connect(self, server, password=None, expected_fingerprint=None):
+    async def _connect(self, server, password=None, expected_fingerprint=None):
         loop = asyncio.get_running_loop()
         if isinstance(server, tuple):
             connargs = dict(zip(["host", "port"], server))
@@ -330,6 +330,13 @@ class UTMRemoteClient:
             raise ValueError("Password invalid" if password else
                              "Password required")
         self.remote.model = str(device)
+
+    async def connect(self, server, password=None, expected_fingerprint=None):
+        try:
+            await self._connect(server, password, expected_fingerprint)
+        except Exception:
+            self._cleanup()
+            raise
 
     def _cleanup(self):
         if self.transport is not None:
