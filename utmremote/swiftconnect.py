@@ -91,13 +91,14 @@ class Peer:
                 print("request")
             try:
                 response = await self.local.handle(id, data)
-                if self.debug:
-                    print(f"result: {bytes(response)}")
-                await self.send(id, response, token, PeerFlag.response)
             except Exception as error:
                 if self.debug:
                     print(f"exception: {error}")
                 await self.sendError(id, error, token)
+            else:
+                if self.debug:
+                    print(f"result: {bytes(response)}")
+                await self.send(id, response, token, PeerFlag.response)
 
     async def send(self, id, data, token, flags=PeerFlag.none):
         if self.debug:
