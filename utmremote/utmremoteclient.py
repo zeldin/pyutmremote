@@ -341,7 +341,7 @@ class UTMRemoteClient:
     async def connect(self, server, password=None, expected_fingerprint=None):
         try:
             await self._connect(server, password, expected_fingerprint)
-        except Exception:
+        except:  # noqa: E722
             self._cleanup()
             raise
 
