@@ -8,7 +8,7 @@ from .upnpscan import get_dbus, ServiceBrowser
 from .utmremoteclient import UTMRemoteClient
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import GLib, Gio, Gtk  # noqa: E402
+from gi.repository import GLib, Gio, GObject, Gtk  # noqa: E402
 
 
 def _get_user_path(environ, fallback, *sub):
@@ -26,6 +26,47 @@ def get_user_config_path(*sub):
 
 def get_user_runtime_path(*sub):
     return _get_user_path("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}", *sub)
+
+
+class SignalingUTMRemoteClient(UTMRemoteClient, GObject.GObject):
+    __gsignals__ = {
+        'list_has_changed':
+        (GObject.SIGNAL_RUN_FIRST, None, (object,)),
+        'qemu_configuration_has_changed':
+        (GObject.SIGNAL_RUN_FIRST, None, (str, object)),
+        'mounted_drives_has_changed':
+        (GObject.SIGNAL_RUN_FIRST, None, (str, object)),
+        'virtual_machine_did_transition':
+        (GObject.SIGNAL_RUN_FIRST, None, (str, object, bool)),
+        'virtual_machine_did_error':
+        (GObject.SIGNAL_RUN_FIRST, None, (str, str))
+    }
+
+    def __init__(self, *args, **kwargs):
+        GObject.GObject.__init__(self)
+        UTMRemoteClient.__init__(self, *args, **kwargs)
+
+    signal_connect = GObject.GObject.connect
+
+    async def remoteListHasChanged(self, ids):
+        await AsyncLoop.wrap(self.emit, 'list_has_changed', ids)
+
+    async def remoteQemuConfigurationHasChanged(self, id, configuration):
+        await AsyncLoop.wrap(self.emit, 'qemu_configuration_has_changed',
+                             id, configuration)
+
+    async def remoteMountedDrivesHasChanged(self, id, mountedDrives):
+        await AsyncLoop.wrap(self.emit, 'mounted_drives_has_changed',
+                             id, mountedDrives)
+
+    async def remoteVirtualMachineDidTransition(self, id, state,
+                                                isTakeoverAllowed):
+        await AsyncLoop.wrap(self.emit, 'virtual_machine_did_transition',
+                             id, state, isTakeoverAllowed)
+
+    async def remoteVirtualMachineDidError(self, id, errorMessage):
+        await AsyncLoop.wrap(self.emit, 'virtual_machine_did_error',
+                             id, errorMessage)
 
 
 class FingerprintDialog(Gtk.Dialog):
@@ -123,29 +164,69 @@ class VirtualMachineList(Gtk.TreeView):
             renderer = Gtk.CellRendererText()
             column = Gtk.TreeViewColumn(title, renderer, text=i+1)
             self.append_column(column)
-        self.bar.run_async_task(self.loop, self._list_vms(),
+        self.vms = {}
+
+    def update_list(self, vm_ids=None):
+        self.bar.run_async_task(self.loop, self._list_vms(vm_ids),
                                 f"Listing virtual machines")
 
-    async def _list_vms(self):
-        remote = self.client.remote
-        vm_ids = await remote.listVirtualMachines()
-        for vminfo in await remote.getVirtualMachineInformation(vm_ids):
-            self.model.append([
+    def vm_did_transition(self, id, state, isTakeoverAllowed):
+        if id in self.vms:
+            self.model.set_value(self.vms[id], 3, state.name)
+
+    def _update_vminfos(self, vminfos):
+        self.model.clear()
+        self.vms = dict()
+        for vminfo in vminfos:
+            self.vms[vminfo.id] = self.model.append([
                 vminfo.id, vminfo.name, vminfo.backend, vminfo.state.name])
+
+    async def _list_vms(self, vm_ids=None):
+        remote = self.client.remote
+        if vm_ids is None:
+            vm_ids = await remote.listVirtualMachines()
+        await AsyncLoop.wrap(self._update_vminfos,
+                             await remote.getVirtualMachineInformation(vm_ids))
 
 
 class ServerWindow(Gtk.Window):
     def __init__(self, loop, client, info):
         super().__init__(title=info['name'])
         self.connect('delete-event', lambda win, event: client.close())
+        client.signal_connect('list_has_changed', self._list_has_changed)
+        client.signal_connect('qemu_configuration_has_changed',
+                              self._qemu_configuration_has_changed)
+        client.signal_connect('mounted_drives_has_changed',
+                              self._mounted_drives_has_changed)
+        client.signal_connect('virtual_machine_did_transition',
+                              self._virtual_machine_did_transition)
+        client.signal_connect('virtual_machine_did_error',
+                              self._virtual_machine_did_error)
 
         self.set_default_size(300, 100)
-        bar = StatusBar()
-        vms = VirtualMachineList(loop, client, bar)
+        self.bar = StatusBar()
+        self.vmlist = VirtualMachineList(loop, client, self.bar)
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        vbox.add(vms)
-        vbox.pack_end(bar, False, False, 0)
+        vbox.add(self.vmlist)
+        vbox.pack_end(self.bar, False, False, 0)
         self.add(vbox)
+        self.vmlist.update_list()
+
+    def _list_has_changed(self, client, ids):
+        self.vmlist.update_list(ids)
+
+    def _qemu_configuration_has_changed(self, client, id, configuration):
+        pass
+
+    def _mounted_drives_has_changed(self, client, id, mountedDrives):
+        pass
+
+    def _virtual_machine_did_transition(
+            self, client, id, state, isTakeoverAllowed):
+        self.vmlist.vm_did_transition(id, state, isTakeoverAllowed)
+
+    def _virtual_machine_did_error(self, client, id, errorMessage):
+        self.bar.error(errorMessage)
 
 
 class ServerList(Gtk.ListBox):
@@ -226,7 +307,7 @@ class ServerList(Gtk.ListBox):
         ServerWindow(self.loop, client, info).show_all()
 
     async def _open_async(self, info):
-        client = UTMRemoteClient(self.cert_path)
+        client = SignalingUTMRemoteClient(self.cert_path)
 
         async def fingerprint_check(fp):
             fp = fp.hex(':', 1).upper()
