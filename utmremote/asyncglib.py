@@ -29,7 +29,8 @@ class AsyncLoop:
 
         fut.add_done_callback(lambda _: GLib.idle_add(call_when_done))
 
-    async def wrap(self, func, *args, **kwargs):
+    @staticmethod
+    async def wrap(func, *args, **kwargs):
         loop = asyncio.get_running_loop()
         fut = loop.create_future()
 
