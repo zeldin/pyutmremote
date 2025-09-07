@@ -6,6 +6,8 @@ from .asyncglib import AsyncLoop
 from .gencert import generate_certificate_async
 from .upnpscan import get_dbus, ServiceBrowser
 from .utmremoteclient import UTMRemoteClient
+from .utmremotemessage import (UTMVirtualMachineState,
+                               UTMVirtualMachineStopMethod)
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gio, GObject, Gtk  # noqa: E402
@@ -165,6 +167,15 @@ class VirtualMachineList(Gtk.TreeView):
             column = Gtk.TreeViewColumn(title, renderer, text=i+1)
             self.append_column(column)
         self.vms = {}
+        self.get_selection().set_mode(Gtk.SelectionMode.SINGLE)
+
+    def get_selected(self):
+        list_store, treeiter = self.get_selection().get_selected()
+        if treeiter is None:
+            return None, None, None
+        else:
+            id, name, state = list_store.get(treeiter, 0, 1, 3)
+            return id, name, UTMVirtualMachineState[state]
 
     def update_list(self, vm_ids=None):
         self.bar.run_async_task(self.loop, self._list_vms(vm_ids),
@@ -205,15 +216,87 @@ class ServerWindow(Gtk.Window):
 
         self.set_default_size(300, 100)
         self.bar = StatusBar()
+        self.loop = loop
+        self.client = client
         self.vmlist = VirtualMachineList(loop, client, self.bar)
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self._start_button = Gtk.Button(label="Start")
+        self._stop_button = Gtk.Button(label="Stop")
+        self._restart_button = Gtk.Button(label="Restart")
+        self._pause_button = Gtk.Button(label="Pause")
+        self._resume_button = Gtk.Button(label="Resume")
+        hbox.pack_start(self._start_button, True, True, 0)
+        hbox.pack_start(self._stop_button, True, True, 0)
+        hbox.pack_start(self._restart_button, True, True, 0)
+        hbox.pack_start(self._pause_button, True, True, 0)
+        hbox.pack_start(self._resume_button, True, True, 0)
+        self._start_button.connect('clicked', self._start_button_clicked)
+        self._stop_button.connect('clicked', self._stop_button_clicked)
+        self._restart_button.connect('clicked', self._restart_button_clicked)
+        self._pause_button.connect('clicked', self._pause_button_clicked)
+        self._resume_button.connect('clicked', self._resume_button_clicked)
+        selection = self.vmlist.get_selection()
+        selection.connect('changed', self._selection_changed)
+        self._selection_changed(selection)
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         vbox.add(self.vmlist)
+        vbox.add(hbox)
         vbox.pack_end(self.bar, False, False, 0)
         self.add(vbox)
         self.vmlist.update_list()
 
+    def _selection_changed(self, selection):
+        vm, name, state = self.vmlist.get_selected()
+        self._start_button.set_sensitive(state is not None)
+        if state == UTMVirtualMachineState.stopped:
+            state = None
+        self._stop_button.set_sensitive(state is not None)
+        self._restart_button.set_sensitive(state is not None)
+        self._pause_button.set_sensitive(state is not None)
+        self._resume_button.set_sensitive(state is not None)
+
+    def _start_button_clicked(self, button):
+        vm, name, _ = self.vmlist.get_selected()
+        if vm is not None:
+            self.bar.run_async_task(
+                self.loop, self.client.remote.startVirtualMachine(vm),
+                f"Starting {name}...", self._start_complete)
+
+    def _start_complete(self, server_info):
+        pass
+
+    def _stop_button_clicked(self, button):
+        vm, name, _ = self.vmlist.get_selected()
+        if vm is not None:
+            self.bar.run_async_task(
+                self.loop, self.client.remote.stopVirtualMachine(
+                    vm, UTMVirtualMachineStopMethod.request),
+                f"Stopping {name}...")
+
+    def _restart_button_clicked(self, button):
+        vm, name, _ = self.vmlist.get_selected()
+        if vm is not None:
+            self.bar.run_async_task(
+                self.loop, self.client.remote.restartVirtualMachine(vm),
+                f"Restarting {name}...")
+
+    def _pause_button_clicked(self, button):
+        vm, name, _ = self.vmlist.get_selected()
+        if vm is not None:
+            self.bar.run_async_task(
+                self.loop, self.client.remote.pauseVirtualMachine(vm),
+                f"Pausing {name}...")
+
+    def _resume_button_clicked(self, button):
+        vm, name, _ = self.vmlist.get_selected()
+        if vm is not None:
+            self.bar.run_async_task(
+                self.loop, self.client.remote.resumeVirtualMachine(vm),
+                f"Resuming {name}...")
+
     def _list_has_changed(self, client, ids):
         self.vmlist.update_list(ids)
+        self._selection_changed(self.vmlist.get_selection())
 
     def _qemu_configuration_has_changed(self, client, id, configuration):
         pass
@@ -224,6 +307,7 @@ class ServerWindow(Gtk.Window):
     def _virtual_machine_did_transition(
             self, client, id, state, isTakeoverAllowed):
         self.vmlist.vm_did_transition(id, state, isTakeoverAllowed)
+        self._selection_changed(self.vmlist.get_selection())
 
     def _virtual_machine_did_error(self, client, id, errorMessage):
         self.bar.error(errorMessage)
