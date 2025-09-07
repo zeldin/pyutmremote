@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import urllib.parse
 from pathlib import Path
 from .asyncglib import AsyncLoop
 from .gencert import generate_certificate_async
@@ -203,6 +204,7 @@ class VirtualMachineList(Gtk.TreeView):
 class ServerWindow(Gtk.Window):
     def __init__(self, loop, client, info):
         super().__init__(title=info['name'])
+        self.server_address = info['address']
         self.connect('delete-event', lambda win, event: client.close())
         client.signal_connect('list_has_changed', self._list_has_changed)
         client.signal_connect('qemu_configuration_has_changed',
@@ -260,10 +262,33 @@ class ServerWindow(Gtk.Window):
         if vm is not None:
             self.bar.run_async_task(
                 self.loop, self.client.remote.startVirtualMachine(vm),
-                f"Starting {name}...", self._start_complete)
+                f"Starting {name}...",
+                lambda info: self._start_complete(info, vm))
 
-    def _start_complete(self, server_info):
-        pass
+    def _start_complete(self, info, vm):
+        host, port = info.spiceHostExternal, info.spicePortExternal
+        if not port:
+            host, port = self.server_address, info.spicePortInternal
+        if host and port:
+            ca_file = get_user_runtime_path(f"{vm}.crt")
+            spice_url = urllib.parse.urlunparse((
+                'spice', '['+host+']' if ':' in host else host,
+                '', '', urllib.parse.urlencode(
+                    [('tls-port', port),
+                     ('password', info.spicePassword)]), ''))
+            self.bar.run_async_task(
+                self.loop, self._run_remote_viewer(
+                    spice_url, ca_file, (host, port), info.spicePublicKey),
+                f"Opening remote viewer...")
+
+    async def _run_remote_viewer(self, spice_url, ca_file, server, pubkey):
+        spice_cert = await self.client.get_spice_cert(server, pubkey)
+        with open(ca_file, "w") as f:
+            f.write(spice_cert)
+        await asyncio.create_subprocess_exec(
+            "remote-viewer",
+            "--spice-host-subject=CN=UTM Remote SPICE Server, O=UTM",
+            f"--spice-ca-file={ca_file}", spice_url)
 
     def _stop_button_clicked(self, button):
         vm, name, _ = self.vmlist.get_selected()
