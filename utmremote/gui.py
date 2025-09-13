@@ -90,9 +90,9 @@ class FingerprintDialog(Gtk.Dialog):
             "then select Trust to continue.", wrap=True, xalign=0.0))
         box.add(Gtk.Separator())
         box.add(Gtk.Label(label="<b>Name</b>", use_markup=True, xalign=0.0))
-        box.add(Gtk.Label(label=info['name'], xalign=0.0))
+        box.add(Gtk.Label(label=info.get('name', ''), xalign=0.0))
         box.add(Gtk.Label(label="<b>Host</b>", use_markup=True, xalign=0.0))
-        box.add(Gtk.Label(label=info['address'], xalign=0.0))
+        box.add(Gtk.Label(label=info.get('address'), xalign=0.0))
         box.add(Gtk.Label(
             label="<b>Fingerprint</b>", use_markup=True, xalign=0.0))
         box.add(Gtk.Label(label=fp))
@@ -203,7 +203,7 @@ class VirtualMachineList(Gtk.TreeView):
 
 class ServerWindow(Gtk.Window):
     def __init__(self, loop, client, info):
-        super().__init__(title=info['name'])
+        super().__init__(title=info.get('name') or info.get('address'))
         self.server_address = info['address']
         self.connect('delete-event', lambda win, event: client.close())
         client.signal_connect('list_has_changed', self._list_has_changed)
@@ -409,7 +409,7 @@ class ServerList(Gtk.ListBox):
         for i, ss in enumerate(self.saved_servers):
             if ss == info:
                 return
-            elif (ss['name'] == info['name'] and
+            elif (ss.get('name') == info.get('name') and
                   ss['address'] == info['address'] and
                   ss['port'] == info['port']):
                 entry = self._saved_servers_entries[i]
@@ -464,8 +464,9 @@ class ServerList(Gtk.ListBox):
 
     def _action_open(self, action, value):
         info = json.loads(value.get_string())
+        label = info.get('name') or info.get('address')
         self.bar.run_async_task(self.loop, self._open_async(info),
-                                f"Opening connection to {info['name']}",
+                                f"Opening connection to {label}",
                                 self._open_complete)
 
     def _open_complete(self, msg):
