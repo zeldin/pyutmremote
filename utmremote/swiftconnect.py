@@ -45,6 +45,7 @@ class Peer:
         self.protocol = None
         self.token = 1
         self.futures = {}
+        self.is_trusted = False
 
     def enqueue(self):
         token, future = self.token, asyncio.get_running_loop().create_future()
@@ -77,6 +78,10 @@ class Peer:
         token = data.popUleb128()
         if self.debug:
             print(f"id = {id}, flags = {flags!r}, token = {token}")
+        if id != 0 and not self.is_trusted:
+            if self.debug:
+                print("Rejected non-handshake message on untrusted connection")
+            return
         if PeerFlag.response in flags:
             if PeerFlag.error in flags:
                 if self.debug:
@@ -120,7 +125,7 @@ class Peer:
         return await future
 
     async def trusted(self):
-        await self.protocol.trusted()
+        self.is_trusted = True
 
 
 class SwiftConnectProtocol(asyncio.Protocol):
@@ -134,7 +139,6 @@ class SwiftConnectProtocol(asyncio.Protocol):
         self.transport = transport
         self.header = None
         self.data = None
-        self.transport.pause_reading()
         self.valve.set()
 
     def data_received(self, data):
@@ -178,6 +182,3 @@ class SwiftConnectProtocol(asyncio.Protocol):
                 data += bytes(x)
         await self.valve.wait()
         self.transport.write(data)
-
-    async def trusted(self):
-        self.transport.resume_reading()
