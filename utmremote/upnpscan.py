@@ -1,8 +1,8 @@
+from gi.repository import GObject
 try:
     import avahi
     import dbus
     from dbus.mainloop import glib
-    from gi.repository import GObject
 except ModuleNotFoundError:
     def _init_dbus():
         return None
