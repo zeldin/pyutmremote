@@ -5,6 +5,7 @@ try:
     from dbus.mainloop import glib
 except ModuleNotFoundError:
     def _init_dbus():
+        print("No Avahi/D-Bus support in Python, disabling Bonjour")
         return None
 
     class _ServiceBrowser:
@@ -20,14 +21,21 @@ else:
 
         def __init__(self, bus, service):
             self.bus = bus
-            self.server = dbus.Interface(bus.get_object(avahi.DBUS_NAME, '/'),
-                                         'org.freedesktop.Avahi.Server')
-            self.browser = dbus.Interface(bus.get_object(
-                avahi.DBUS_NAME, self.server.ServiceBrowserNew(
-                    avahi.IF_UNSPEC, avahi.PROTO_UNSPEC, service,
-                    'local', dbus.UInt32(0))),
-                                          avahi.DBUS_INTERFACE_SERVICE_BROWSER)
-            self.browser.connect_to_signal("ItemNew", self._itemnew_handler)
+            try:
+                self.server = dbus.Interface(
+                    bus.get_object(avahi.DBUS_NAME, '/'),
+                    'org.freedesktop.Avahi.Server')
+            except dbus.exceptions.DBusException:
+                print("Unable to connect to Avahi, disabling Bonjour")
+            else:
+                self.browser = dbus.Interface(
+                    bus.get_object(
+                        avahi.DBUS_NAME, self.server.ServiceBrowserNew(
+                            avahi.IF_UNSPEC, avahi.PROTO_UNSPEC, service,
+                            'local', dbus.UInt32(0))),
+                    avahi.DBUS_INTERFACE_SERVICE_BROWSER)
+                self.browser.connect_to_signal(
+                    "ItemNew", self._itemnew_handler)
 
         def _itemnew_handler(self, interface, protocol, name,
                              service, domain, flags):
