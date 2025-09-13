@@ -344,7 +344,7 @@ class ServerList(Gtk.ListBox):
             super().__init__()
             self.discovered = discovered
             self.sortpos = 2 if discovered else 0
-            self.name = info['name']
+            self.name = info.get('name') or info.get('address')
             self.set_selectable(False)
             self.set_action_name('self.open')
             self.set_action_target_value(
