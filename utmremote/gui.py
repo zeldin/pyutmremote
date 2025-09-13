@@ -5,7 +5,7 @@ import urllib.parse
 from pathlib import Path
 from .asyncglib import AsyncLoop
 from .gencert import generate_certificate_async
-from .upnpscan import get_dbus, ServiceBrowser
+from .zeroconf import get_dbus, ServiceBrowser
 from .utmremoteclient import UTMRemoteClient
 from .utmremotemessage import (UTMVirtualMachineState,
                                UTMVirtualMachineStopMethod)
