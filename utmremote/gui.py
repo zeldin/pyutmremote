@@ -370,6 +370,9 @@ class ServerList(Gtk.ListBox):
         self.cert_path = cert_path
         self.separator = None
         self.set_sort_func(self._sort_func)
+        self.discovered_servers = []
+        self._discovered_servers_entries = []
+        self._load_saved_servers()
         self.action_group = Gio.SimpleActionGroup()
         self.new_action = Gio.SimpleAction(name='new')
         self.open_action = Gio.SimpleAction(
@@ -384,8 +387,62 @@ class ServerList(Gtk.ListBox):
         for serv in browser.get_services():
             self._new_service(browser, *serv)
 
+    def _load_saved_servers(self):
+        self.saved_servers = []
+        self._saved_servers_entries = []
+        path = get_user_config_path("servers.json")
+        if path.exists():
+            try:
+                with path.open(encoding='utf-8') as f:
+                    self.saved_servers = json.load(f)
+            except Exception as exc:
+                self.bar.error(str(exc))
+        for ss in self.saved_servers:
+            self._add_server(False, ss)
+
+    def _save_saved_servers(self):
+        path = get_user_config_path("servers.json")
+        with path.open('w', encoding='utf-8') as f:
+            json.dump(self.saved_servers, f)
+
+    def _update_saved_server(self, info):
+        for i, ss in enumerate(self.saved_servers):
+            if ss == info:
+                return
+            elif (ss['name'] == info['name'] and
+                  ss['address'] == info['address'] and
+                  ss['port'] == info['port']):
+                entry = self._saved_servers_entries[i]
+                self.saved_servers[i] = info
+                self._save_saved_servers()
+        self.saved_servers.append(info)
+        self._add_server(False, info)
+        self._save_saved_servers()
+
     def _add_server(self, discovered, info):
+        if discovered:
+            for ss in self.saved_servers:
+                if ss['address'] == info['address'] and (
+                        ss['port'] == info['port']):
+                    return
+            self.discovered_servers.append(info)
+        else:
+            for i, ss in enumerate(self.discovered_servers):
+                if ss['address'] == info['address'] and (
+                        ss['port'] == info['port']):
+                    self.remove(self._discovered_servers_entries[i])
+                    del self.discovered_servers[i]
+                    del self._discovered_servers_entries[i]
+                    if len(self.discovered_servers) == 0 and (
+                            self.separator is not None):
+                        self.remove(self.separator)
+                        self.separator = None
+                    break
         entry = self.ServerEntry(discovered, info)
+        if discovered:
+            self._discovered_servers_entries.append(entry)
+        else:
+            self._saved_servers_entries.append(entry)
         entry.show_all()
         if discovered and self.separator is None:
             self.separator = self.UpnpSeparatorEntry()
@@ -413,6 +470,7 @@ class ServerList(Gtk.ListBox):
 
     def _open_complete(self, msg):
         client, info = msg
+        self._update_saved_server(info)
         ServerWindow(self.loop, client, info).show_all()
 
     async def _open_async(self, info):
