@@ -11,7 +11,7 @@ from .utmremotemessage import (UTMVirtualMachineState,
                                UTMVirtualMachineStopMethod)
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import GLib, Gio, GObject, Gtk  # noqa: E402
+from gi.repository import GLib, Gio, GObject, Gtk, Gdk  # noqa: E402
 
 
 def _get_user_path(environ, fallback, *sub):
@@ -382,10 +382,34 @@ class ServerList(Gtk.ListBox):
         self.action_group.add_action(self.new_action)
         self.action_group.add_action(self.open_action)
         self.insert_action_group('self', self.action_group)
+        self.connect('button-press-event', self._button_press)
 
         browser.connect('new_service', self._new_service)
         for serv in browser.get_services():
             self._new_service(browser, *serv)
+
+    def _button_press(self, widget, event):
+        if event.type == Gdk.EventType.BUTTON_PRESS and event.button == 3:
+            row = self.get_row_at_y(event.y)
+            if row and row in self._saved_servers_entries:
+                self._saved_server_menu(
+                    event, self._saved_servers_entries.index(row))
+
+    def _saved_server_menu(self, event, index):
+        menu = Gtk.Menu()
+        item = Gtk.MenuItem(label="Forget")
+        item.connect("activate", lambda item: self._forget_saved_server(index))
+        menu.append(item)
+        menu.show_all()
+        menu.popup_at_pointer(event)
+
+    def _forget_saved_server(self, index):
+        self.remove(self._saved_servers_entries[index])
+        del self.saved_servers[index]
+        del self._saved_servers_entries[index]
+        for serv in self.browser.get_services():
+            self._new_service(self.browser, *serv)
+        self._save_saved_servers()
 
     def _load_saved_servers(self):
         self.saved_servers = []
