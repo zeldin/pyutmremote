@@ -99,7 +99,7 @@ class FingerprintDialog(Gtk.Dialog):
 
 
 class PasswordDialog(Gtk.Dialog):
-    def __init__(self, **kw):
+    def __init__(self, password=None, **kw):
         super().__init__(title="Password required", flags=0, **kw)
         self.add_buttons(
             "Close", Gtk.ResponseType.CLOSE,
@@ -107,10 +107,18 @@ class PasswordDialog(Gtk.Dialog):
         self.set_default_response(Gtk.ResponseType.OK)
         box = self.get_content_area()
         self.entry = Gtk.Entry(visibility=False)
+        if password is not None:
+            self.entry.set_text(password)
         box.add(self.entry)
+        self.checkbox = Gtk.CheckButton(
+            label="Save password", active=password is not None)
+        box.add(self.checkbox)
 
     def get_password(self):
         return self.entry.get_text()
+
+    def get_save_password(self):
+        return self.checkbox.get_active()
 
 
 class StatusBar(Gtk.InfoBar):
@@ -507,6 +515,7 @@ class ServerList(Gtk.ListBox):
 
     async def _open_async(self, info):
         client = SignalingUTMRemoteClient(self.cert_path)
+        password = info.get('password')
 
         async def fingerprint_check(fp):
             fp = fp.hex(':', 1).upper()
@@ -516,11 +525,19 @@ class ServerList(Gtk.ListBox):
             info['fingerprint'] = fp
 
         async def password_query():
-            return await self.loop.wrap(self._password_dialog)
+            nonlocal password
+            pw, save = await self.loop.wrap(self._password_dialog, password)
+            password = pw if save else None
+            return pw
 
         await client.connect((info['address'], info['port']),
-                             password=password_query,
-                             expected_fingerprint=fingerprint_check)
+                             password=password,
+                             expected_fingerprint=fingerprint_check,
+                             password_query=password_query)
+        if password is not None:
+            info['password'] = password
+        elif 'password' in info:
+            del info['password']
         return client, info
 
     def _fingerprint_dialog(self, info, fp):
@@ -532,14 +549,17 @@ class ServerList(Gtk.ListBox):
         if response != Gtk.ResponseType.ACCEPT:
             raise ConnectionError("Server not trusted")
 
-    def _password_dialog(self):
-        dialog = PasswordDialog(transient_for=self.get_toplevel())
+    def _password_dialog(self, password):
+        dialog = PasswordDialog(password, transient_for=self.get_toplevel())
         dialog.show_all()
         response = dialog.run()
         password = dialog.get_password()
+        save = dialog.get_save_password()
         dialog.destroy()
         if response == Gtk.ResponseType.OK:
-            return password
+            return password, save
+        else:
+            return None, False
 
 
 class ServerListWindow(Gtk.Window):

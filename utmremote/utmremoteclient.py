@@ -285,7 +285,8 @@ class UTMRemoteClient:
                 self.client_fingerprint = _fingerprint_pem(certfile.read())
         self.ssl_context = ssl_context
 
-    async def _connect(self, server, password=None, expected_fingerprint=None):
+    async def _connect(self, server, password=None, expected_fingerprint=None,
+                       password_query=None):
         loop = asyncio.get_running_loop()
         if isinstance(server, tuple):
             connargs = dict(zip(["host", "port"], server))
@@ -325,10 +326,9 @@ class UTMRemoteClient:
                 raise ConnectionError("Fingerprint mismatch")
         await self.peer.trusted()
         self.remote = self.Remote(self.peer)
-        isAuthenticated, device = await self.remote.handshake(
-            None if callable(password) else password)
-        if not isAuthenticated and callable(password):
-            password = password()
+        isAuthenticated, device = await self.remote.handshake(password)
+        if not isAuthenticated and password_query is not None:
+            password = password_query()
             if inspect.isawaitable(password):
                 password = await password
             if password:
@@ -338,9 +338,11 @@ class UTMRemoteClient:
                              "Password required")
         self.remote.model = str(device)
 
-    async def connect(self, server, password=None, expected_fingerprint=None):
+    async def connect(self, server, password=None, expected_fingerprint=None,
+                      password_query=None):
         try:
-            await self._connect(server, password, expected_fingerprint)
+            await self._connect(
+                server, password, expected_fingerprint, password_query)
         except:  # noqa: E722
             self._cleanup()
             raise
