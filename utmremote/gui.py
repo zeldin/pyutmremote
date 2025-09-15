@@ -34,15 +34,15 @@ def get_user_runtime_path(*sub):
 class SignalingUTMRemoteClient(UTMRemoteClient, GObject.GObject):
     __gsignals__ = {
         'list_has_changed':
-        (GObject.SIGNAL_RUN_FIRST, None, (object,)),
+        (GObject.SignalFlags.RUN_FIRST, None, (object,)),
         'qemu_configuration_has_changed':
-        (GObject.SIGNAL_RUN_FIRST, None, (str, object)),
+        (GObject.SignalFlags.RUN_FIRST, None, (str, object)),
         'mounted_drives_has_changed':
-        (GObject.SIGNAL_RUN_FIRST, None, (str, object)),
+        (GObject.SignalFlags.RUN_FIRST, None, (str, object)),
         'virtual_machine_did_transition':
-        (GObject.SIGNAL_RUN_FIRST, None, (str, object, bool)),
+        (GObject.SignalFlags.RUN_FIRST, None, (str, object, bool)),
         'virtual_machine_did_error':
-        (GObject.SIGNAL_RUN_FIRST, None, (str, str))
+        (GObject.SignalFlags.RUN_FIRST, None, (str, str))
     }
 
     def __init__(self, *args, **kwargs):
