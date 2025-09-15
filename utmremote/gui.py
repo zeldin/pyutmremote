@@ -344,12 +344,17 @@ class ServerList(Gtk.ListBox):
             super().__init__()
             self.discovered = discovered
             self.sortpos = 2 if discovered else 0
-            self.name = info.get('name') or info.get('address')
             self.set_selectable(False)
             self.set_action_name('self.open')
+            self.label = Gtk.Label(xalign=0.0)
+            self.update(info)
+            self.add(self.label)
+
+        def update(self, info):
+            self.name = info.get('name') or info.get('address')
+            self.label.set_label(self.name)
             self.set_action_target_value(
                 GLib.Variant.new_string(json.dumps(info)))
-            self.add(Gtk.Label(label=self.name, xalign=0.0))
 
     class UpnpSeparatorEntry(Gtk.ListBoxRow):
         sortpos = 1
@@ -439,6 +444,8 @@ class ServerList(Gtk.ListBox):
                 entry = self._saved_servers_entries[i]
                 self.saved_servers[i] = info
                 self._save_saved_servers()
+                entry.update(info)
+                return
         self.saved_servers.append(info)
         self._add_server(False, info)
         self._save_saved_servers()
