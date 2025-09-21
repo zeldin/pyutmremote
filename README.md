@@ -7,7 +7,7 @@ to be remote controlled from non-Apple platforms.
 
 ## GUI
 
-To use the CLI, run
+To use the GUI, run
 
 ```
 python -m utmremote.gui
