@@ -53,11 +53,15 @@ else:
                     self._display is None):
                 GObject.GObject.connect(
                     channel, "channel_event", self._channel_event)
+                GObject.GObject.connect(
+                    channel, "notify::monitors", self._notify_monitors)
                 self.set_title(session.props.name)
                 channel_id = channel.get_property("channel-id")
                 self._display_channel = channel
                 self._display = SpiceClientGtk.Display.new(
                     self._spice_session, channel_id)
+                self._display.props.resize_guest = False
+                self._display.props.scaling = True
                 self._display.show()
                 self.add(self._display)
 
@@ -67,6 +71,11 @@ else:
                 self._display = None
                 self._display_channel = None
                 self.close()
+
+        def _notify_monitors(self, channel, pspec):
+            width, height = channel.props.width, channel.props.height
+            if width > 0 and height > 0:
+                self.resize(width, height)
 
     async def _run_remote_viewer(vm, client, host, port, password, pubkey):
         await AsyncLoop.wrap(
