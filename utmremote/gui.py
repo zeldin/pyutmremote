@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import urllib.parse
+import warnings
 from pathlib import Path
 from .asyncglib import AsyncLoop
 from .data import GByteArray
@@ -177,6 +178,50 @@ class PasswordDialog(Gtk.Dialog):
 
     def get_save_password(self):
         return self.checkbox.get_active()
+
+
+class NewConnectionDialog(Gtk.Dialog):
+    def __init__(self, **kw):
+        super().__init__(title="New connection", flags=0, **kw)
+        self.add_buttons(
+            "Close", Gtk.ResponseType.CLOSE,
+            "Connect", Gtk.ResponseType.APPLY)
+        self.set_default_response(Gtk.ResponseType.APPLY)
+        self.set_response_sensitive(Gtk.ResponseType.APPLY, False)
+        box = self.get_content_area()
+        box.add(Gtk.Label(label="<b>Name</b>", use_markup=True, xalign=0.0))
+        self.name_entry = Gtk.Entry(placeholder_text="Name (optional)")
+        box.add(self.name_entry)
+        box.add(Gtk.Label(label="<b>Host</b>", use_markup=True, xalign=0.0))
+        self.address_entry = Gtk.Entry(
+            placeholder_text="Hostname or IP address")
+        box.add(self.address_entry)
+        self.port_entry = Gtk.Entry(
+            input_purpose=Gtk.InputPurpose.DIGITS, placeholder_text="Port")
+        self.port_entry.connect('insert-text', self._check_digits)
+        box.add(self.port_entry)
+        self.address_entry.connect('notify::text', self._notify_text)
+        self.port_entry.connect('notify::text', self._notify_text)
+
+    def _check_digits(self, entry, text, length, position):
+        try:
+            int(text)
+        except ValueError:
+            GObject.signal_stop_emission_by_name(entry, 'insert-text')
+
+    def _notify_text(self, entry, param):
+        self.set_response_sensitive(
+            Gtk.ResponseType.APPLY, self.address_entry.get_text() and
+            self.port_entry.get_text() and True or False)
+
+    def get_name(self):
+        return self.name_entry.get_text()
+
+    def get_address(self):
+        return self.address_entry.get_text()
+
+    def get_port(self):
+        return int(self.port_entry.get_text() or '0')
 
 
 class StatusBar(Gtk.InfoBar):
@@ -543,7 +588,19 @@ class ServerList(Gtk.ListBox):
         return (row1.name > row2.name) - (row1.name < row2.name)
 
     def _action_new(self, action, _):
-        print("Xnew")
+        dialog = NewConnectionDialog(transient_for=self.get_toplevel())
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            dialog.show_all()
+            response = dialog.run()
+        info = dict(address=dialog.get_address(), port=dialog.get_port())
+        name = dialog.get_name()
+        if name:
+            info['name'] = name
+        dialog.destroy()
+        if response == Gtk.ResponseType.APPLY:
+            self.open_action.activate(
+                GLib.Variant.new_string(json.dumps(info)))
 
     def _action_open(self, action, value):
         info = json.loads(value.get_string())
