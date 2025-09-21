@@ -1,3 +1,6 @@
+import ctypes
+
+
 class Data:
 
     def __init__(self, data=None, offset=0, end=None):
@@ -110,3 +113,11 @@ class BitVector:
 
 class UUID(str):
     pass
+
+
+class GByteArray(ctypes.Structure):
+    _fields_ = [('data', ctypes.c_char_p), ('len', ctypes.c_uint)]
+
+    def __init__(self, data):
+        self.data = data
+        self.len = len(data)

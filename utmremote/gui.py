@@ -4,6 +4,7 @@ import os
 import urllib.parse
 from pathlib import Path
 from .asyncglib import AsyncLoop
+from .data import GByteArray
 from .gencert import generate_certificate_async
 from .zeroconf import get_dbus, ServiceBrowser
 from .utmremoteclient import UTMRemoteClient
@@ -12,6 +13,63 @@ from .utmremotemessage import (UTMVirtualMachineState,
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gio, GObject, Gtk, Gdk  # noqa: E402
+try:
+    gi.require_version('SpiceClientGtk', '3.0')
+except ValueError:
+    async def _run_remote_viewer(vm, client, host, port, password, pubkey):
+        ca_file = get_user_runtime_path(f"{vm}.crt")
+        spice_url = urllib.parse.urlunparse((
+            'spice', '['+host+']' if ':' in host else host,
+            '', '', urllib.parse.urlencode(
+                [('tls-port', port),
+                 ('password', password)]), ''))
+        spice_cert = await client.get_spice_cert((host, port), pubkey)
+        with open(ca_file, "w") as f:
+            f.write(spice_cert)
+        await asyncio.create_subprocess_exec(
+            "remote-viewer",
+            "--spice-host-subject=CN=UTM Remote SPICE Server, O=UTM",
+            f"--spice-ca-file={ca_file}", spice_url)
+else:
+    from gi.repository import SpiceClientGtk, SpiceClientGLib
+
+    class SpiceWindow(Gtk.Window):
+        def __init__(self, host, port, password, pubkey):
+            Gtk.Window.__init__(self)
+            self._display = None
+            self._display_channel = None
+            self._spice_session = SpiceClientGLib.Session(
+                host=str(host), tls_port=str(port), password=password
+            )
+            self._pubkey = GByteArray(pubkey)
+            self._spice_session.props.pubkey = bytes(self._pubkey)
+            GObject.GObject.connect(
+                self._spice_session, "channel-new", self._channel_new)
+            self._spice_session.connect()
+
+        def _channel_new(self, session, channel):
+            if isinstance(channel, SpiceClientGLib.DisplayChannel) and (
+                    self._display is None):
+                GObject.GObject.connect(
+                    channel, "channel_event", self._channel_event)
+                self.set_title(session.props.name)
+                channel_id = channel.get_property("channel-id")
+                self._display_channel = channel
+                self._display = SpiceClientGtk.Display.new(
+                    self._spice_session, channel_id)
+                self._display.show()
+                self.add(self._display)
+
+        def _channel_event(self, channel, event):
+            if channel == self._display_channel and event == (
+                    SpiceClientGLib.ChannelEvent.CLOSED):
+                self._display = None
+                self._display_channel = None
+                self.close()
+
+    async def _run_remote_viewer(vm, client, host, port, password, pubkey):
+        await AsyncLoop.wrap(
+            lambda: SpiceWindow(host, port, password, pubkey).show_all())
 
 
 def _get_user_path(environ, fallback, *sub):
@@ -278,25 +336,11 @@ class ServerWindow(Gtk.Window):
         if not port:
             host, port = self.server_address, info.spicePortInternal
         if host and port:
-            ca_file = get_user_runtime_path(f"{vm}.crt")
-            spice_url = urllib.parse.urlunparse((
-                'spice', '['+host+']' if ':' in host else host,
-                '', '', urllib.parse.urlencode(
-                    [('tls-port', port),
-                     ('password', info.spicePassword)]), ''))
             self.bar.run_async_task(
-                self.loop, self._run_remote_viewer(
-                    spice_url, ca_file, (host, port), info.spicePublicKey),
+                self.loop, _run_remote_viewer(
+                    vm, self.client, host, port,
+                    info.spicePassword, info.spicePublicKey),
                 f"Opening remote viewer...")
-
-    async def _run_remote_viewer(self, spice_url, ca_file, server, pubkey):
-        spice_cert = await self.client.get_spice_cert(server, pubkey)
-        with open(ca_file, "w") as f:
-            f.write(spice_cert)
-        await asyncio.create_subprocess_exec(
-            "remote-viewer",
-            "--spice-host-subject=CN=UTM Remote SPICE Server, O=UTM",
-            f"--spice-ca-file={ca_file}", spice_url)
 
     def _stop_button_clicked(self, button):
         vm, name, _ = self.vmlist.get_selected()
