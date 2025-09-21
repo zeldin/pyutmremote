@@ -60,6 +60,8 @@ else:
                 self._display_channel = channel
                 self._display = SpiceClientGtk.Display.new(
                     self._spice_session, channel_id)
+                GObject.GObject.connect(
+                    self._display, "mouse-grab", self._mouse_grab)
                 self._display.props.resize_guest = False
                 self._display.props.scaling = True
                 self._display.show()
@@ -76,6 +78,13 @@ else:
             width, height = channel.props.width, channel.props.height
             if width > 0 and height > 0:
                 self.resize(width, height)
+
+        def _mouse_grab(self, display, grab):
+            title = self._spice_session.props.name
+            if grab:
+                grab_keys = display.get_grab_keys().as_string()
+                title = f"{title} (Press {grab_keys} to release pointer)"
+            self.set_title(title)
 
     async def _run_remote_viewer(vm, client, host, port, password, pubkey):
         await AsyncLoop.wrap(
