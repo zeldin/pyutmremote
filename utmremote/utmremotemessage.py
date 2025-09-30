@@ -38,23 +38,23 @@ class UTMVirtualMachineStopMethod(enum.Enum):
 
 
 class ServerInformation(Codable):
-    _types = {'spicePortInternal': int,
-              'spicePortExternal': int,
-              'spiceHostExternal': str,
-              'spicePublicKey': bytes,
-              'spicePassword': str}
+    spicePortInternal: int
+    spicePortExternal: int
+    spiceHostExternal: str
+    spicePublicKey: bytes
+    spicePassword: str
 
 
 class VirtualMachineInformation(Codable):
-    _types = {'id': UUID,
-              'name': str,
-              'path': str,
-              'isShortcut': bool,
-              'isSuspended': bool,
-              'isTakeoverAllowed': bool,
-              'backend': UTMBackend,
-              'state': UTMVirtualMachineState,
-              'mountedDrives': {str: str}}
+    id: UUID
+    name: str
+    path: str
+    isShortcut: bool
+    isSuspended: bool
+    isTakeoverAllowed: bool
+    backend: UTMBackend
+    state: UTMVirtualMachineState
+    mountedDrives: dict[str, str]
 
 
 class Date(str):
@@ -85,13 +85,14 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(serverHandshake)
     class ServerHandshake(Message):
         class Request(Codable):
-            _types = {'version': int, 'password': str}
+            version: int
+            password: str
 
         class Reply(Codable):
-            _types = {'version': int,
-                      'isAuthenticated': bool,
-                      'capabilities': UTMCapabilities,
-                      'model': str}
+            version: int
+            isAuthenticated: bool
+            capabilities: UTMCapabilities
+            model: str
 
     @messageId(listVirtualMachines)
     class ListVirtualMachines(Message):
@@ -99,13 +100,13 @@ class UTMRemoteMessageServer(enum.IntEnum):
             pass
 
         class Reply(Codable):
-            _types = {'ids': [UUID]}
+            ids: list[UUID]
 
     @messageId(reorderVirtualMachines)
     class ReorderVirtualMachines(Message):
         class Request(Codable):
-            _types = {'ids': [UUID],
-                      'offset': int}
+            ids: list[UUID]
+            offset: int
 
         class Reply(Codable):
             pass
@@ -113,45 +114,45 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(getVirtualMachineInformation)
     class GetVirtualMachineInformation(Message):
         class Request(Codable):
-            _types = {'ids': [UUID]}
+            ids: list[UUID]
 
         class Reply(Codable):
-            _types = {'informations': [VirtualMachineInformation]}
+            informations: list[VirtualMachineInformation]
 
     @messageId(getQEMUConfiguration)
     class GetQEMUConfiguration(Message):
         class Request(Codable):
-            _types = {'id': UUID}
+            id: UUID
 
         class Reply(Codable):
-            _types = {'configuration': UTMQemuConfiguration}
+            configuration: UTMQemuConfiguration
 
     @messageId(getPackageSize)
     class GetPackageSize(Message):
         class Request(Codable):
-            _types = {'id': UUID}
+            id: UUID
 
         class Reply(Codable):
-            _types = {'size': int}
+            size: int
 
     @messageId(getPackageFile)
     class GetPackageFile(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'relativePathComponents': [str],
-                      'lastModified': Date}
+            id: UUID
+            relativePathComponents: list[str]
+            lastModified: Date
 
         class Reply(Codable):
-            _types = {'data': bytes,
-                      'lastModified': Date}
+            data: bytes
+            lastModified: Date
 
     @messageId(sendPackageFile)
     class SendPackageFile(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'relativePathComponents': [str],
-                      'lastModified': Date,
-                      'data': bytes}
+            id: UUID
+            relativePathComponents: list[str]
+            lastModified: Date
+            data: bytes
 
         class Reply(Codable):
             pass
@@ -159,8 +160,8 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(deletePackageFile)
     class DeletePackageFile(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'relativePathComponents': [str]}
+            id: UUID
+            relativePathComponents: list[str]
 
         class Reply(Codable):
             pass
@@ -168,7 +169,7 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(mountGuestToolsOnVirtualMachine)
     class MountGuestToolsOnVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID}
+            id: UUID
 
         class Reply(Codable):
             pass
@@ -176,17 +177,17 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(startVirtualMachine)
     class StartVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'options': UTMVirtualMachineStartOptions}
+            id: UUID
+            options: UTMVirtualMachineStartOptions
 
         class Reply(Codable):
-            _types = {'serverInfo': ServerInformation}
+            serverInfo: ServerInformation
 
     @messageId(stopVirtualMachine)
     class StopVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'method': UTMVirtualMachineStopMethod}
+            id: UUID
+            method: UTMVirtualMachineStopMethod
 
         class Reply(Codable):
             pass
@@ -194,7 +195,7 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(restartVirtualMachine)
     class RestartVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID}
+            id: UUID
 
         class Reply(Codable):
             pass
@@ -202,7 +203,7 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(pauseVirtualMachine)
     class PauseVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID}
+            id: UUID
 
         class Reply(Codable):
             pass
@@ -210,7 +211,7 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(resumeVirtualMachine)
     class ResumeVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID}
+            id: UUID
 
         class Reply(Codable):
             pass
@@ -218,8 +219,8 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(saveSnapshotVirtualMachine)
     class SaveSnapshotVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'name': str}
+            id: UUID
+            name: str
 
         class Reply(Codable):
             pass
@@ -227,8 +228,8 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(deleteSnapshotVirtualMachine)
     class DeleteSnapshotVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'name': str}
+            id: UUID
+            name: str
 
         class Reply(Codable):
             pass
@@ -236,8 +237,8 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(restoreSnapshotVirtualMachine)
     class RestoreSnapshotVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'name': str}
+            id: UUID
+            name: str
 
         class Reply(Codable):
             pass
@@ -245,8 +246,8 @@ class UTMRemoteMessageServer(enum.IntEnum):
     @messageId(changePointerTypeVirtualMachine)
     class ChangePointerTypeVirtualMachine(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'isTabletMode': bool}
+            id: UUID
+            isTabletMode: bool
 
         class Reply(Codable):
             pass
@@ -263,16 +264,16 @@ class UTMRemoteMessageClient(enum.IntEnum):
     @messageId(clientHandshake)
     class ClientHandshake(Message):
         class Request(Codable):
-            _types = {'version': int}
+            version: int
 
         class Reply(Codable):
-            _types = {'version': int,
-                      'capabilities': UTMCapabilities}
+            version: int
+            capabilities: UTMCapabilities
 
     @messageId(listHasChanged)
     class ListHasChanged(Message):
         class Request(Codable):
-            _types = {'ids': [UUID]}
+            ids: list[UUID]
 
         class Reply(Codable):
             pass
@@ -280,8 +281,8 @@ class UTMRemoteMessageClient(enum.IntEnum):
     @messageId(qemuConfigurationHasChanged)
     class QEMUConfigurationHasChanged(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'configuration': UTMQemuConfiguration}
+            id: UUID
+            configuration: UTMQemuConfiguration
 
         class Reply(Codable):
             pass
@@ -289,8 +290,8 @@ class UTMRemoteMessageClient(enum.IntEnum):
     @messageId(mountedDrivesHasChanged)
     class MountedDrivesHasChanged(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'mountedDrives': {str: str}}
+            id: UUID
+            mountedDrives: dict[str, str]
 
         class Reply(Codable):
             pass
@@ -298,9 +299,9 @@ class UTMRemoteMessageClient(enum.IntEnum):
     @messageId(virtualMachineDidTransition)
     class VirtualMachineDidTransition(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'state': UTMVirtualMachineState,
-                      'isTakeoverAllowed': bool}
+            id: UUID
+            state: UTMVirtualMachineState
+            isTakeoverAllowed: bool
 
         class Reply(Codable):
             pass
@@ -308,8 +309,8 @@ class UTMRemoteMessageClient(enum.IntEnum):
     @messageId(virtualMachineDidError)
     class VirtualMachineDidError(Message):
         class Request(Codable):
-            _types = {'id': UUID,
-                      'errorMessage': str}
+            id: UUID
+            errorMessage: str
 
         class Reply(Codable):
             pass

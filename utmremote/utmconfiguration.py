@@ -77,132 +77,132 @@ class UTMBackend(enum.StrEnum):
 
 
 class UTMConfigurationInfo(Codable):
-    _types = {'Name': str,
-              'Icon': str,
-              'IconCustom': bool,
-              'Notes': str,
-              'UUID': UUID}
+    Name: str
+    Icon: str
+    IconCustom: bool
+    Notes: str
+    UUID: UUID
 
 
 class UTMConfigurationTerminal(Codable):
-    _types = {'Theme': str,
-              'ForegroundColor': str,
-              'BackgroundColor': str,
-              'Font': str,
-              'FontSize': int,
-              'ResizeCommand': str,
-              'CursorBlink': bool}
+    Theme: str
+    ForegroundColor: str
+    BackgroundColor: str
+    Font: str
+    FontSize: int
+    ResizeCommand: str
+    CursorBlink: bool
 
 
 class UTMQemuConfigurationDisplay(Codable):
-    _types = {'Hardware': str,
-              'VgaRamMib': int,
-              'DynamicResolution': bool,
-              'UpscalingFilter': QEMUScaler,
-              'DownscalingFilter': QEMUScaler,
-              'NativeResolution': bool}
+    Hardware: str
+    VgaRamMib: int
+    DynamicResolution: bool
+    UpscalingFilter: QEMUScaler
+    DownscalingFilter: QEMUScaler
+    NativeResolution: bool
 
 
 class UTMQemuConfigurationDrive(Codable):
-    _types = {'ImageName': str,
-              'ImageType': QEMUDriveImageType,
-              'Interface': QEMUDriveInterface,
-              'InterfaceVersion': int,
-              'Identifier': str,
-              'ReadOnly': bool}
+    ImageName: str
+    ImageType: QEMUDriveImageType
+    Interface: QEMUDriveInterface
+    InterfaceVersion: int
+    Identifier: str
+    ReadOnly: bool
 
 
 class UTMQemuConfigurationInput(Codable):
-    _types = {'UsbBusSupport': QEMUUSBBus,
-              'UsbSharing': bool,
-              'MaximumUsbShare': int}
+    UsbBusSupport: QEMUUSBBus
+    UsbSharing: bool
+    MaximumUsbShare: int
 
 
 class UTMQemuConfigurationPortForward(Codable):
-    _types = {'Protocol': QEMUNetworkProtocol,
-              'HostAddress': str,
-              'HostPort': int,
-              'GuestAddress': str,
-              'GuestPort': int}
+    Protocol: QEMUNetworkProtocol
+    HostAddress: str
+    HostPort: int
+    GuestAddress: str
+    GuestPort: int
 
 
 class UTMQemuConfigurationNetwork(Codable):
-    _types = {'Mode': QEMUNetworkMode,
-              'Hardware': str,
-              'MacAddress': str,
-              'IsolateFromHost': bool,
-              'PortForward': [UTMQemuConfigurationPortForward],
-              'BridgeInterface': str,
-              'VlanGuestAddress': str,
-              'VlanGuestAddressIPv6': str,
-              'VlanHostAddress': str,
-              'VlanHostAddressIPv6': str,
-              'VlanDhcpStartAddress': str,
-              'VlanDhcpEndAddress': str,
-              'VlanDhcpDomain': str,
-              'VlanDnsServerAddress': str,
-              'VlanDnsServerAddressIPv6': str,
-              'VlanDnsSearchDomain': str,
-              'HostNetUuid': str}
+    Mode: QEMUNetworkMode
+    Hardware: str
+    MacAddress: str
+    IsolateFromHost: bool
+    PortForward: list[UTMQemuConfigurationPortForward]
+    BridgeInterface: str
+    VlanGuestAddress: str
+    VlanGuestAddressIPv6: str
+    VlanHostAddress: str
+    VlanHostAddressIPv6: str
+    VlanDhcpStartAddress: str
+    VlanDhcpEndAddress: str
+    VlanDhcpDomain: str
+    VlanDnsServerAddress: str
+    VlanDnsServerAddressIPv6: str
+    VlanDnsSearchDomain: str
+    HostNetUuid: str
 
 
 class UTMQemuConfigurationQEMU(Codable):
-    _types = {'DebugLog': bool,
-              'UEFIBoot': bool,
-              'RNGDevice': bool,
-              'BalloonDevice': bool,
-              'TPMDevice': bool,
-              'Hypervisor': bool,
-              'TSO': bool,
-              'RTCLocalTime': bool,
-              'PS2Controller': bool,
-              'MachinePropertyOverride': str,
-              'AdditionalArguments': [str]}
+    DebugLog: bool
+    UEFIBoot: bool
+    RNGDevice: bool
+    BalloonDevice: bool
+    TPMDevice: bool
+    Hypervisor: bool
+    TSO: bool
+    RTCLocalTime: bool
+    PS2Controller: bool
+    MachinePropertyOverride: str
+    AdditionalArguments: list[str]
 
 
 class UTMQemuConfigurationSerial(Codable):
-    _types = {'Mode': QEMUSerialMode,
-              'Target': QEMUSerialTarget,
-              'Terminal': UTMConfigurationTerminal,
-              'Hardware': str,
-              'TcpHostAddress': str,
-              'TcpPort': int,
-              'WaitForConnection': bool,
-              'RemoteConnectionAllowed': bool}
+    Mode: QEMUSerialMode
+    Target: QEMUSerialTarget
+    Terminal: UTMConfigurationTerminal
+    Hardware: str
+    TcpHostAddress: str
+    TcpPort: int
+    WaitForConnection: bool
+    RemoteConnectionAllowed: bool
 
 
 class UTMQemuConfigurationSharing(Codable):
-    _types = {'DirectoryShareMode': QEMUFileShareMode,
-              'DirectoryShareReadOnly': bool,
-              'ClipboardSharing': bool}
+    DirectoryShareMode: QEMUFileShareMode
+    DirectoryShareReadOnly: bool
+    ClipboardSharing: bool
 
 
 class UTMQemuConfigurationSound(Codable):
-    _types = {'Hardware': str}
+    Hardware: str
 
 
 class UTMQemuConfigurationSystem(Codable):
-    _types = {'Architecture': str,
-              'Target': str,
-              'CPU': str,
-              'CPUFlagsAdd': [str],
-              'CPUFlagsRemove': [str],
-              'CPUCount': int,
-              'ForceMulticore': bool,
-              'MemorySize': int,
-              'JITCacheSize': int}
+    Architecture: str
+    Target: str
+    CPU: str
+    CPUFlagsAdd: list[str]
+    CPUFlagsRemove: list[str]
+    CPUCount: int
+    ForceMulticore: bool
+    MemorySize: int
+    JITCacheSize: int
 
 
 class UTMQemuConfiguration(Codable):
-    _types = {'Information': UTMConfigurationInfo,
-              'System': UTMQemuConfigurationSystem,
-              'QEMU': UTMQemuConfigurationQEMU,
-              'Input': UTMQemuConfigurationInput,
-              'Sharing': UTMQemuConfigurationSharing,
-              'Display': [UTMQemuConfigurationDisplay],
-              'Drive': [UTMQemuConfigurationDrive],
-              'Network': [UTMQemuConfigurationNetwork],
-              'Serial': [UTMQemuConfigurationSerial],
-              'Sound': [UTMQemuConfigurationSound],
-              'Backend': UTMBackend,
-              'ConfigurationVersion': int}
+    Information: UTMConfigurationInfo
+    System: UTMQemuConfigurationSystem
+    QEMU: UTMQemuConfigurationQEMU
+    Input: UTMQemuConfigurationInput
+    Sharing: UTMQemuConfigurationSharing
+    Display: list[UTMQemuConfigurationDisplay]
+    Drive: list[UTMQemuConfigurationDrive]
+    Network: list[UTMQemuConfigurationNetwork]
+    Serial: list[UTMQemuConfigurationSerial]
+    Sound: list[UTMQemuConfigurationSound]
+    Backend: UTMBackend
+    ConfigurationVersion: int

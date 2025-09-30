@@ -1,7 +1,16 @@
 import enum
 import struct
+import types
+import typing
 
 from .data import Data, BitVector
+
+
+def _get_type_hints(obj):
+    if hasattr(obj, '__annotations__'):
+        return typing.get_type_hints(obj)
+    else:
+        return {}
 
 
 class UnkeyedContainerMetadata(enum.IntEnum):
@@ -20,7 +29,7 @@ class CodDecoder:
     class Decoder:
 
         def __init__(self, val, data, shapes=None):
-            if isinstance(val, type):
+            if isinstance(val, type) or isinstance(val, types.GenericAlias):
                 self.type = val
                 self.val = None
             else:
@@ -42,7 +51,14 @@ class CodDecoder:
             self.shapes = shapes
 
         def decode(self):
-            if self.type == bool:
+            if isinstance(self.type, types.GenericAlias):
+                if self.type.__origin__ == list:
+                    return self._decode_unkeyed_container(
+                        *self.type.__args__)
+                elif self.type.__origin__ == dict:
+                    return self._decode_keyed_container(
+                        dict(), *self.type.__args__)
+            elif self.type == bool:
                 return self.data.popFirst() != 0
             elif issubclass(self.type, int):
                 val = 0
@@ -55,18 +71,12 @@ class CodDecoder:
                 return self._decode_keyed_container(
                     self.val if self.val is not None else self.type())
             elif issubclass(self.type, enum.Enum):
-                val = self._decode_keyed_container(dict(), str, {None: None})
+                val = self._decode_keyed_container(
+                    dict(), str, dict[None, None])
                 return getattr(self.type, next(iter(val.keys())))
-            elif self.type == dict and self.val is not None:
-                return self._decode_keyed_container(
-                    dict(), type(next(iter(self.val.keys()))),
-                    type(next(iter(self.val.values()))))
-            elif self.type == list and self.val is not None:
-                return self._decode_unkeyed_container(self.val[0])
             elif self.type == bytes:
                 return self._decode_unkeyed_container(bytes)
-            else:
-                raise ValueError(f"Don't know how to decode {self.type}")
+            raise ValueError(f"Don't know how to decode {self.type}")
 
         def _decode_unkeyed_container(self, elttype):
             type = UnkeyedContainerMetadata(self.data.popFirst())
@@ -126,14 +136,14 @@ class CodDecoder:
                         keys[key] = slice(offset, offset+elen)
                         offset += elen
             if vtype is None:
-                for key in container._types.keys():
+                for key in _get_type_hints(container).keys():
                     setattr(container, key, None)
             for key, pos in keys.items():
                 if pos is None:
                     value = None
                 else:
                     value = self.__class__(
-                        vtype if vtype is not None else container._types[key],
+                        vtype or _get_type_hints(container)[key],
                         self.data[pos], self.shapes).decode()
                 if ktype is None:
                     setattr(container, key, value)
@@ -239,7 +249,7 @@ class CodEncoder:
                     return dict()
             else:
                 sortedKeys = [
-                    k for k in sorted(self.val.__class__._types.keys())
+                    k for k in sorted(_get_type_hints(self.val).keys())
                     if getattr(self.val, k, None) is not None]
 
                 def get(key):
@@ -284,8 +294,6 @@ class CodEncoder:
 
 class Codable:
 
-    _types = {}
-
     def __init__(self, *args, **kwargs):
         if len(args) == 1 and len(kwargs) == 0:
             self.decode(args[0])
@@ -303,7 +311,7 @@ class Codable:
 
     def __repr__(self):
         attributes = [f"{key}={getattr(self, key)!r}"
-                      for key in self.__class__._types.keys()
+                      for key in _get_type_hints(self).keys()
                       if hasattr(self, key)]
         v_string = ", ".join(attributes)
         class_name = self.__class__.__qualname__
