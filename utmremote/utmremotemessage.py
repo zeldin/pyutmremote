@@ -19,8 +19,8 @@ class UTMVirtualMachineStartOptions(enum.IntFlag):
     remoteSession = 1 << 2
 
 
-class UTMVirtualMachineState(enum.Enum):
-    stopped = enum.auto()
+class UTMVirtualMachineState(enum.IntEnum):
+    stopped = 0
     starting = enum.auto()
     started = enum.auto()
     pausing = enum.auto()
@@ -31,8 +31,8 @@ class UTMVirtualMachineState(enum.Enum):
     stopping = enum.auto()
 
 
-class UTMVirtualMachineStopMethod(enum.Enum):
-    request = enum.auto()
+class UTMVirtualMachineStopMethod(enum.IntEnum):
+    request = 0
     force = enum.auto()
     kill = enum.auto()
 
