@@ -7,6 +7,8 @@ from .data import Data, BitVector
 
 
 def _get_type_hints(obj):
+    if not isinstance(obj, type):
+        obj = obj.__class__
     if hasattr(obj, '__annotations__'):
         return typing.get_type_hints(obj)
     else:
