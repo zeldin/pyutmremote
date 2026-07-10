@@ -42,7 +42,11 @@ else:
             self._spice_session = SpiceClientGLib.Session(
                 host=str(host), tls_port=str(port), password=password
             )
-            self._pubkey = GByteArray(pubkey)
+            try:
+                gi.check_version((3, 55, 1))
+                self._pubkey = bytes(pubkey)
+            except ValueError:
+                self._pubkey = GByteArray(pubkey)
             self._spice_session.props.pubkey = bytes(self._pubkey)
             GObject.GObject.connect(
                 self._spice_session, "channel-new", self._channel_new)
